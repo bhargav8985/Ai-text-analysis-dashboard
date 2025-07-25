@@ -1,3 +1,5 @@
+import os
+import requests
 import numpy as np
 import tensorflow as tf
 import pickle
@@ -6,28 +8,52 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 import nltk
 import warnings
 
-# Suppress warnings for cleaner output
-warnings.filterwarnings('ignore')
+# --- Helper Function to Download Models ---
+def download_file_from_hf(repo_id, filename, local_dir="models"):
+    """Downloads a file from a Hugging Face Hub repo."""
+    if not os.path.exists(local_dir):
+        os.makedirs(local_dir)
 
-# --- Initialize Flask App ---
+    local_path = os.path.join(local_dir, filename)
+
+    # Only download if the file doesn't already exist
+    if not os.path.exists(local_path):
+        url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}"
+        print(f"Downloading {filename} from {url}...")
+        try:
+            response = requests.get(url, stream=True)
+            response.raise_for_status() # Raise an exception for bad status codes
+            with open(local_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            print(f"✅ Downloaded {filename} successfully.")
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Failed to download {filename}. Error: {e}")
+            return None
+    return local_path
+REPO_ID = "Bhargav1111111111/ai-text-analysis-dashboard" 
+
+FN_MODEL_PATH = download_file_from_hf(REPO_ID, "fake_news_cnn_model.h5")
+FN_TOKENIZER_PATH = download_file_from_hf(REPO_ID, "tokenizer.pkl")
+MT_MODEL_PATH = download_file_from_hf(REPO_ID, "multi_task_model.h5")
+MT_TOKENIZER_PATH = download_file_from_hf(REPO_ID, "tokenizer1.pkl")
+
 app = Flask(__name__)
 
-# --- Load Models and Tokenizers ---
+# --- Load Models and Tokenizers from downloaded files ---
 try:
-    # Load Fake News Detection Model
-    fake_news_model = tf.keras.models.load_model('fake_news_cnn_model.h5')
-    with open('tokenizer.pkl', 'rb') as f:
+    fake_news_model = tf.keras.models.load_model(FN_MODEL_PATH)
+    with open(FN_TOKENIZER_PATH, 'rb') as f:
         fake_news_tokenizer = pickle.load(f)
-    print("✅ Fake News Detector model and tokenizer loaded successfully.")
+    print("✅ Fake News Detector model loaded.")
 
-    # Load Multi-Task Classification Model
-    multi_task_model = tf.keras.models.load_model('multi_task_model.h5')
-    with open('tokenizer1.pkl', 'rb') as f:
+    multi_task_model = tf.keras.models.load_model(MT_MODEL_PATH)
+    with open(MT_TOKENIZER_PATH, 'rb') as f:
         multi_task_tokenizer = pickle.load(f)
-    print("✅ Multi-Task Classifier model and tokenizer loaded successfully.")
-
+    print("✅ Multi-Task Classifier model loaded.")
 except Exception as e:
-    print(f"❌ Error loading models or tokenizers: {e}")
+    print(f"❌ Error loading models: {e}")
+
 
 # --- Define Constants ---
 MAX_LEN_FAKE_NEWS = 200
