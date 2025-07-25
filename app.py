@@ -1,11 +1,11 @@
 import os
-import requests
-import numpy as np
-import tensorflow as tf
+import requests # pyright: ignore[reportMissingModuleSource]
+import numpy as np # pyright: ignore[reportMissingImports]
+import tensorflow as tf # pyright: ignore[reportMissingImports]
 import pickle
-from flask import Flask, request, jsonify
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-import nltk
+from flask import Flask, request, jsonify # pyright: ignore[reportMissingImports]
+from tensorflow.keras.preprocessing.sequence import pad_sequences # type: ignore
+import nltk # pyright: ignore[reportMissingImports]
 import warnings
 
 # --- Helper Function to Download Models ---
