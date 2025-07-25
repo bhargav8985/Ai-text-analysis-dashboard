@@ -1,7 +1,8 @@
 Flask==2.3.2
 flask-cors==4.0.0
 gunicorn==21.2.0
-tensorflow==2.11.0
+tensorflow-cpu==2.10.1
+
 pandas==2.2.2
 scikit-learn==1.4.2
 numpy
