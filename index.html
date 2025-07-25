@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text Analysis Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple spinner animation */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900">AI Text Analysis Dashboard</h1>
+            <p class="text-lg text-gray-600 mt-2">Interfaces for Fake News Detection & Multi-Task Text Classification</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- Card 1: Fake News Detector -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-2xl font-bold mb-3 text-gray-800">Fake News Detector</h2>
+                <p class="text-gray-600 mb-4">Uses a custom CNN model. Enter news text below to classify it as Real or Fake.</p>
+                
+                <div class="space-y-4">
+                    <textarea id="fakeNewsText" class="w-full h-48 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Paste news article text here..."></textarea>
+                    <button id="detectBtn" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300">
+                        Detect News Type
+                    </button>
+                </div>
+                
+                <div id="fakeNewsResultWrapper" class="mt-6 hidden">
+                    <h3 class="font-semibold text-lg mb-2">Analysis Result:</h3>
+                    <div id="fakeNewsLoader" class="flex justify-center items-center h-24 hidden">
+                        <div class="spinner"></div>
+                    </div>
+                    <div id="fakeNewsResult" class="p-4 rounded-lg"></div>
+                </div>
+            </div>
+
+            <!-- Card 2: Multi-Task Text Classifier -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-2xl font-bold mb-3 text-gray-800">Multi-Task Text Classifier</h2>
+                <p class="text-gray-600 mb-4">Uses a multimodal classification model to analyze text for emotion, violence, and hate speech.</p>
+                
+                <div class="space-y-4">
+                    <textarea id="multiTaskText" class="w-full h-48 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="Enter a sentence to classify..."></textarea>
+                    <button id="classifyBtn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300">
+                        Classify Text
+                    </button>
+                </div>
+                
+                <div id="multiTaskResultWrapper" class="mt-6 hidden">
+                     <h3 class="font-semibold text-lg mb-2">Analysis Results:</h3>
+                     <div id="multiTaskLoader" class="flex justify-center items-center h-24 hidden">
+                        <div class="spinner"></div>
+                    </div>
+                    <div id="multiTaskResult" class="space-y-3"></div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="text-center mt-12 text-gray-500">
+            <p>Note: This interface makes API calls to a backend. For demonstration, it falls back to a simulation if the backend is not available.</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const detectBtn = document.getElementById('detectBtn');
+        const fakeNewsText = document.getElementById('fakeNewsText');
+        const fakeNewsResultWrapper = document.getElementById('fakeNewsResultWrapper');
+        const fakeNewsLoader = document.getElementById('fakeNewsLoader');
+        const fakeNewsResult = document.getElementById('fakeNewsResult');
+
+        const classifyBtn = document.getElementById('classifyBtn');
+        const multiTaskText = document.getElementById('multiTaskText');
+        const multiTaskResultWrapper = document.getElementById('multiTaskResultWrapper');
+        const multiTaskLoader = document.getElementById('multiTaskLoader');
+        const multiTaskResult = document.getElementById('multiTaskResult');
+        
+        // Use the full URL for the backend API
+        const API_BASE_URL = 'http://127.0.0.1:5000';
+
+        // --- Event Listeners ---
+        detectBtn.addEventListener('click', async () => {
+            const text = fakeNewsText.value.trim();
+            if (!text) {
+                alert('Please enter some news text to analyze.');
+                return;
+            }
+            fakeNewsResultWrapper.classList.remove('hidden');
+            fakeNewsResult.classList.add('hidden');
+            fakeNewsLoader.classList.remove('hidden');
+            
+            try {
+                // This is the live API call.
+                const result = await predictFakeNews(text);
+                displayFakeNewsResult(result);
+            } catch (error) {
+                console.warn("API call failed. Falling back to simulation.", error);
+                // Fallback to simulation if the API call fails
+                const simulatedResult = await predictFakeNews_simulated(text);
+                displayFakeNewsResult(simulatedResult);
+            }
+        });
+
+        classifyBtn.addEventListener('click', async () => {
+            const text = multiTaskText.value.trim();
+            if (!text) {
+                alert('Please enter a sentence to classify.');
+                return;
+            }
+            multiTaskResultWrapper.classList.remove('hidden');
+            multiTaskResult.classList.add('hidden');
+            multiTaskLoader.classList.remove('hidden');
+            
+            try {
+                // This is the live API call.
+                const result = await classifyText(text);
+                displayMultiTaskResult(result);
+            } catch (error) {
+                console.warn("API call failed. Falling back to simulation.", error);
+                // Fallback to simulation if the API call fails
+                const simulatedResult = await classifyText_simulated(text);
+                displayMultiTaskResult(simulatedResult);
+            }
+        });
+
+        // --- Display Functions ---
+        function displayFakeNewsResult({ prediction, confidence }) {
+            fakeNewsLoader.classList.add('hidden');
+            fakeNewsResult.classList.remove('hidden');
+            
+            const isFake = prediction === 'Fake-News';
+            const bgColor = isFake ? 'bg-red-100' : 'bg-green-100';
+            const textColor = isFake ? 'text-red-800' : 'text-green-800';
+            const borderColor = isFake ? 'border-red-500' : 'border-green-500';
+
+            fakeNewsResult.className = `p-4 rounded-lg border-l-4 ${bgColor} ${textColor} ${borderColor}`;
+            fakeNewsResult.innerHTML = `
+                <p class="font-bold text-xl">${prediction}</p>
+                <p class="text-sm">Confidence: <span class="font-semibold">${(confidence * 100).toFixed(2)}%</span></p>
+            `;
+        }
+        
+        function displayMultiTaskResult({ emotion, violence, hate }) {
+            multiTaskLoader.classList.add('hidden');
+            multiTaskResult.classList.remove('hidden');
+
+            multiTaskResult.innerHTML = `
+                <div class="p-3 bg-gray-100 rounded-lg">
+                    <span class="font-semibold">Emotion:</span> ${emotion}
+                </div>
+                <div class="p-3 bg-gray-100 rounded-lg">
+                    <span class="font-semibold">Violence Type:</span> ${violence}
+                </div>
+                <div class="p-3 bg-gray-100 rounded-lg">
+                    <span class="font-semibold">Hate Speech Level:</span> ${hate}
+                </div>
+            `;
+        }
+
+        // --- LIVE API CALL FUNCTIONS ---
+        // These functions call the Flask backend server.
+
+        async function predictFakeNews(text) {
+            const response = await fetch(`${API_BASE_URL}/api/detect-fake-news`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        async function classifyText(text) {
+            const response = await fetch(`${API_BASE_URL}/api/classify-text`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        // --- SIMULATED FALLBACK FUNCTIONS ---
+        const emotionLabels = ['sadness', 'joy', 'love', 'anger', 'fear', 'surprise'];
+        const violenceLabels = ['Physical Violence', 'Sexual Violence', 'Emotional Violence', 'Economic Violence', 'Harmful Traditional Practice'];
+        const hateLabels = ['Hate Speech', 'Offensive Speech', 'Normal'];
+        
+        function predictFakeNews_simulated(text) {
+            console.log("Simulating Fake News prediction...");
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const randomFactor = Math.random();
+                    const isFake = text.length < 500 || randomFactor < 0.5;
+                    resolve({
+                        prediction: isFake ? 'Fake-News' : 'Real-News',
+                        confidence: 0.85 + (Math.random() * 0.14)
+                    });
+                }, 1000);
+            });
+        }
+
+        function classifyText_simulated(text) {
+            console.log("Simulating Multi-Task classification...");
+             return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve({
+                        emotion: emotionLabels[Math.floor(Math.random() * emotionLabels.length)],
+                        violence: violenceLabels[Math.floor(Math.random() * violenceLabels.length)],
+                        hate: hateLabels[Math.floor(Math.random() * hateLabels.length)]
+                    });
+                }, 1000);
+            });
+        }
+
+    </script>
+</body>
+</html>
