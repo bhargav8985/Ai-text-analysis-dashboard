@@ -1,6 +1,4 @@
-Flask==2.3.2
-flask-cors==4.0.0
-gunicorn==21.2.0
+streamlit
 scikit-learn==1.4.2
 numpy==1.26.4
 pandas==2.2.2
