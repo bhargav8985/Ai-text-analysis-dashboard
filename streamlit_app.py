@@ -1,99 +1,76 @@
 import os
 import pickle
 import requests
-from flask import Flask, request, jsonify
+import streamlit as st
 
-# Flask App Initialization
-app = Flask(__name__)
-
-# Download models from Hugging Face
+# --- Download models from Hugging Face ---
 def download_file_from_hf(repo_id, filename, local_dir="models"):
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
     local_path = os.path.join(local_dir, filename)
     if not os.path.exists(local_path):
         url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}"
-        print(f"Downloading {filename} from {url}...")
+        st.info(f"Downloading {filename} from Hugging Face...")
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
             with open(local_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
-            print(f"✅ Downloaded {filename}")
+            st.success(f"✅ Downloaded {filename}")
         except requests.exceptions.RequestException as e:
-            print(f"❌ Failed to download {filename}: {e}")
+            st.error(f"❌ Failed to download {filename}: {e}")
             return None
     return local_path
 
-# Hugging Face repo ID
-REPO_ID = "Bhargav1111111111/ai-text-analysis-dashboard"
-
-# File names
-FN_MODEL_PATH = download_file_from_hf(REPO_ID, "fake_news_model.pkl")
-EMOTION_MODEL_PATH = download_file_from_hf(REPO_ID, "emotion_model.pkl")
-VIOLENCE_MODEL_PATH = download_file_from_hf(REPO_ID, "violence_model.pkl")
-HATE_MODEL_PATH = download_file_from_hf(REPO_ID, "hate_model.pkl")
-
-# Load models
+# --- Load model ---
+@st.cache_resource
 def load_model(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
 
-try:
-    fake_news_model = load_model(FN_MODEL_PATH)
-    emotion_model = load_model(EMOTION_MODEL_PATH)
-    violence_model = load_model(VIOLENCE_MODEL_PATH)
-    hate_model = load_model(HATE_MODEL_PATH)
-    print("✅ All Scikit-learn models loaded.")
-except Exception as e:
-    print(f"❌ Error loading models: {e}")
-
-# Label mappings
+# --- Constants ---
+REPO_ID = "Bhargav1111111111/ai-text-analysis-dashboard"
 emotion_labels = ['sadness', 'joy', 'love', 'anger', 'fear', 'surprise']
 violence_labels = ['Physical Violence', 'Sexual Violence', 'Emotional Violence', 'Economic Violence', 'Harmful Traditional Practice']
 hate_labels = ['Hate Speech', 'Offensive Speech', 'Normal']
 
-# --- API: Fake News Detection ---
-@app.route('/api/detect-fake-news', methods=['POST'])
-def detect_fake_news():
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        if not text:
-            return jsonify({'error': 'No text provided'}), 400
+# --- Download and Load All Models ---
+with st.spinner("🔁 Loading models..."):
+    fn_model_path = download_file_from_hf(REPO_ID, "fake_news_model.pkl")
+    emo_model_path = download_file_from_hf(REPO_ID, "emotion_model.pkl")
+    vio_model_path = download_file_from_hf(REPO_ID, "violence_model.pkl")
+    hate_model_path = download_file_from_hf(REPO_ID, "hate_model.pkl")
 
-        prob = fake_news_model.predict_proba([text])[0][1]
-        prediction = int(prob > 0.5)
+    fake_news_model = load_model(fn_model_path)
+    emotion_model = load_model(emo_model_path)
+    violence_model = load_model(vio_model_path)
+    hate_model = load_model(hate_model_path)
 
-        result = {
-            'prediction': 'Fake-News' if prediction == 1 else 'Real-News',
-            'confidence': float(prob) if prediction == 1 else float(1 - prob)
-        }
-        return jsonify(result)
+st.title("🧠 AI Text Analysis Dashboard (Streamlit)")
+st.caption("Detect Fake News or Classify text by Emotion, Violence, and Hate Speech using Scikit-learn models.")
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# --- Interface ---
+option = st.radio("Choose Task", ["Fake News Detection", "Multi-Task Classification"])
 
-# --- API: Multi-Task Classification ---
-@app.route('/api/classify-text', methods=['POST'])
-def classify_text():
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        if not text:
-            return jsonify({'error': 'No text provided'}), 400
+text = st.text_area("📝 Enter your text here:", height=200)
 
-        result = {
-            "emotion": emotion_labels[emotion_model.predict([text])[0]],
-            "violence": violence_labels[violence_model.predict([text])[0]],
-            "hate": hate_labels[hate_model.predict([text])[0]]
-        }
-        return jsonify(result)
+if st.button("Analyze"):
+    if not text.strip():
+        st.warning("⚠️ Please enter some text.")
+    else:
+        with st.spinner("🔍 Analyzing..."):
+            if option == "Fake News Detection":
+                prob = fake_news_model.predict_proba([text])[0][1]
+                is_fake = prob > 0.5
+                st.success("Prediction: " + ("Fake-News" if is_fake else "Real-News"))
+                st.info(f"Confidence: {prob * 100:.2f}%")
+            else:
+                emotion = emotion_labels[emotion_model.predict([text])[0]]
+                violence = violence_labels[violence_model.predict([text])[0]]
+                hate = hate_labels[hate_model.predict([text])[0]]
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# --- Run the Flask App ---
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+                st.subheader("🔎 Classification Results")
+                st.markdown(f"**Emotion:** {emotion}")
+                st.markdown(f"**Violence Type:** {violence}")
+                st.markdown(f"**Hate Speech Level:** {hate}")
